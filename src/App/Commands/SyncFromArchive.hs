@@ -20,9 +20,9 @@ import Data.ByteString.Lazy.Search      (replace)
 import Data.Generics.Product.Any        (the)
 import Data.Maybe
 import Data.Semigroup                   ((<>))
-import Foreign.C.Error ( eXDEV )
+import Foreign.C.Error                  (eXDEV)
 import HaskellWorks.CabalCache.AppError
-import HaskellWorks.CabalCache.IO.Error (exceptWarn, maybeToExcept, catchErrno)
+import HaskellWorks.CabalCache.IO.Error (catchErrno, exceptWarn, maybeToExcept)
 import HaskellWorks.CabalCache.Location ((<.>), (</>))
 import HaskellWorks.CabalCache.Metadata (loadMetadata)
 import HaskellWorks.CabalCache.Show
@@ -52,11 +52,12 @@ import qualified System.IO                                        as IO
 import qualified System.IO.Temp                                   as IO
 import qualified System.IO.Unsafe                                 as IO
 
-{-# ANN module ("HLint: ignore Reduce duplication"  :: String) #-}
-{-# ANN module ("HLint: ignore Redundant do"        :: String) #-}
+{-# ANN module ("HLint: ignore Monoid law, left identity"   :: String) #-}
+{-# ANN module ("HLint: ignore Reduce duplication"          :: String) #-}
+{-# ANN module ("HLint: ignore Redundant do"                :: String) #-}
 
 skippable :: Z.Package -> Bool
-skippable package = (package ^. the @"packageType" == "pre-existing")
+skippable package = package ^. the @"packageType" == "pre-existing"
 
 runSyncFromArchive :: Z.SyncFromArchiveOptions -> IO ()
 runSyncFromArchive opts = do

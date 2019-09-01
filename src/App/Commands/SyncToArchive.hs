@@ -50,8 +50,9 @@ import qualified System.IO.Temp                     as IO
 import qualified System.IO.Unsafe                   as IO
 import qualified UnliftIO.Async                     as IO
 
-{-# ANN module ("HLint: ignore Reduce duplication"  :: String) #-}
-{-# ANN module ("HLint: ignore Redundant do"        :: String) #-}
+{-# ANN module ("HLint: ignore Monoid law, left identity" :: String) #-}
+{-# ANN module ("HLint: ignore Reduce duplication"        :: String) #-}
+{-# ANN module ("HLint: ignore Redundant do"              :: String) #-}
 
 runSyncToArchive :: Z.SyncToArchiveOptions -> IO ()
 runSyncToArchive opts = do
@@ -144,7 +145,7 @@ runSyncToArchive opts = do
 
   earlyExit <- STM.readTVarIO tEarlyExit
 
-  when earlyExit $ CIO.hPutStrLn IO.stderr $ "Early exit due to error"
+  when earlyExit . CIO.hPutStrLn IO.stderr $ "Early exit due to error"
 
 isShareable :: MonadIO m => FilePath -> Z.PackageInfo -> m Bool
 isShareable storePath pkg =

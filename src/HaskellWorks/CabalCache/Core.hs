@@ -35,6 +35,8 @@ import qualified HaskellWorks.CabalCache.IO.Tar as IO
 import qualified HaskellWorks.CabalCache.Types  as Z
 import qualified System.Directory               as IO
 
+{-# ANN module ("HLint: ignore Monoid law, left identity" :: String) #-}
+
 type PackageDir = FilePath
 type ConfPath   = FilePath
 type Library    = FilePath
@@ -71,7 +73,7 @@ getPackages basePath planJson = forM packages (mkPackageInfo basePath compilerId
         packages = planJson ^. the @"installPlan"
 
 loadPlan :: IO (Either AppError Z.PlanJson)
-loadPlan = (first fromString . eitherDecode) <$> LBS.readFile ("dist-newstyle" </> "cache" </> "plan.json")
+loadPlan = first fromString . eitherDecode <$> LBS.readFile ("dist-newstyle" </> "cache" </> "plan.json")
 
 -------------------------------------------------------------------------------
 mkPackageInfo :: FilePath -> Z.CompilerId -> Z.Package -> IO PackageInfo

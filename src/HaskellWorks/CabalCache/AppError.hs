@@ -1,15 +1,18 @@
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module HaskellWorks.CabalCache.AppError
   ( AppError(..)
   , displayAppError
   , appErrorStatus
+  , toGenericAppError
   ) where
 
 import Data.String
-import Data.Text                    (Text)
+import Data.Text                     (Text)
 import GHC.Generics
+import HaskellWorks.CabalCache.Error
 import HaskellWorks.CabalCache.Show
 
 import qualified Data.Text          as T
@@ -29,6 +32,9 @@ data AppError
 
 instance IsString AppError where
   fromString = GenericAppError . T.pack
+
+toGenericAppError :: ErrorMessage a => a -> AppError
+toGenericAppError a = GenericAppError (errorMessage a)
 
 displayAppError :: AppError -> Text
 displayAppError (AwsAppError s)       = tshow s

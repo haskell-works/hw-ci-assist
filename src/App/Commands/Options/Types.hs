@@ -1,7 +1,11 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module App.Commands.Options.Types where
+module App.Commands.Options.Types
+  ( SyncToArchiveOptions(..)
+  , SyncFromArchiveOptions(..)
+  , VersionOptions(..)
+  ) where
 
 import Antiope.Env                      (Region)
 import GHC.Generics
