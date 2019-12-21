@@ -43,7 +43,11 @@ common hw-hedgehog                    { build-depends: hw-hedgehog              
 common hw-hspec-hedgehog              { build-depends: hw-hspec-hedgehog              >= 0.1.0.4    && < 0.2    }
 common lens                           { build-depends: lens                           >= 4.17       && < 5      }
 common mtl                            { build-depends: mtl                            >= 2.2.2      && < 2.3    }
+common network-uri                    { build-depends: network-uri                    >= 2.6.1.0    && < 2.7    }
 common optparse-applicative           { build-depends: optparse-applicative           >= 0.14       && < 0.16   }
+common polysemy                       { build-depends: polysemy                       >= 1.1.0.0    && < 2      }
+common polysemy-plugin                { build-depends: polysemy-plugin                >= 0.2.2.0    && < 1      }
+common polysemy-zoo                   { build-depends: polysemy-zoo                   >= 0.5.0.1    && < 1      }
 common process                        { build-depends: process                        >= 1.6.5.0    && < 1.7    }
 common raw-strings-qq                 { build-depends: raw-strings-qq                 >= 1.1        && < 2      }
 common relation                       { build-depends: relation                       >= 0.5        && < 0.6    }
@@ -61,7 +65,14 @@ common zlib                           { build-depends: zlib                     
 
 common config
   default-language:     Haskell2010
-  ghc-options:          -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates
+  ghc-options:          -Wall
+                        -fwarn-tabs
+                        -fwarn-incomplete-uni-patterns
+                        -fwarn-incomplete-record-updates
+                        -O2
+                        -flate-specialise
+                        -fspecialise-aggressively
+
 
 library
   import:   base, config
@@ -85,7 +96,11 @@ library
           , http-types
           , lens
           , mtl
+          , network-uri
           , optparse-applicative
+          , polysemy
+          , polysemy-plugin
+          , polysemy-zoo
           , process
           , relation
           , resourcet
@@ -106,6 +121,8 @@ library
       App.Commands
       App.Commands.Options.Parser
       App.Commands.Options.Types
+      App.Commands.PolySyncFromArchive
+      App.Commands.PolyVersion
       App.Commands.SyncFromArchive
       App.Commands.SyncToArchive
       App.Commands.Version
@@ -116,6 +133,18 @@ library
       HaskellWorks.CabalCache.Concurrent.Fork
       HaskellWorks.CabalCache.Concurrent.Type
       HaskellWorks.CabalCache.Core
+      HaskellWorks.CabalCache.Effects.Aws
+      HaskellWorks.CabalCache.Effects.Console
+      HaskellWorks.CabalCache.Effects.Core
+      HaskellWorks.CabalCache.Effects.Exit
+      HaskellWorks.CabalCache.Effects.FileSystem
+      HaskellWorks.CabalCache.Effects.GhcPkg
+      HaskellWorks.CabalCache.Effects.Log
+      HaskellWorks.CabalCache.Effects.Plan
+      HaskellWorks.CabalCache.Effects.Process
+      HaskellWorks.CabalCache.Effects.Stm
+      HaskellWorks.CabalCache.Effects.Store
+      HaskellWorks.CabalCache.Effects.Tar
       HaskellWorks.CabalCache.Error
       HaskellWorks.CabalCache.GhcPkg
       HaskellWorks.CabalCache.Hash
@@ -132,6 +161,8 @@ library
       HaskellWorks.CabalCache.Topology
       HaskellWorks.CabalCache.Types
       HaskellWorks.CabalCache.Version
+
+      Control.Resource
 
 executable cabal-cache
   import:   base, config

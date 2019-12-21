@@ -1,7 +1,12 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module App.Commands.Options.Types where
+module App.Commands.Options.Types
+  ( PolySyncFromArchiveOptions (..)
+  , SyncFromArchiveOptions (..)
+  , SyncToArchiveOptions (..)
+  , VersionOptions (..)
+  ) where
 
 import Antiope.Env                      (Region)
 import GHC.Generics
@@ -19,6 +24,15 @@ data SyncToArchiveOptions = SyncToArchiveOptions
   } deriving (Eq, Show, Generic)
 
 data SyncFromArchiveOptions = SyncFromArchiveOptions
+  { region        :: Region
+  , archiveUri    :: Location
+  , storePath     :: FilePath
+  , storePathHash :: Maybe String
+  , threads       :: Int
+  , awsLogLevel   :: Maybe AWS.LogLevel
+  } deriving (Eq, Show, Generic)
+
+data PolySyncFromArchiveOptions = PolySyncFromArchiveOptions
   { region        :: Region
   , archiveUri    :: Location
   , storePath     :: FilePath

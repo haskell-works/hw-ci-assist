@@ -4,17 +4,13 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
 
-module App.Commands.SyncFromArchive
-  ( cmdSyncFromArchive
+module App.Commands.PolySyncFromArchive
+  ( cmdPolySyncFromArchive
   ) where
 
-import Antiope.Core                     (Region (..), runResAws, toText)
+import Antiope.Core                     (runResAws, toText)
 import Antiope.Env                      (mkEnv)
-import Antiope.Options.Applicative
-import App.Commands.Options.Parser      (text)
-import App.Commands.Options.Types       (SyncFromArchiveOptions (SyncFromArchiveOptions))
-import App.Static                       (homeDirectory)
-import Control.Applicative
+import App.Commands.Options.Parser      (optsPolySyncFromArchive)
 import Control.Lens                     hiding ((<.>))
 import Control.Monad                    (unless, void, when)
 import Control.Monad.Catch              (MonadCatch)
@@ -27,12 +23,14 @@ import Data.Semigroup                   ((<>))
 import Foreign.C.Error                  (eXDEV)
 import HaskellWorks.CabalCache.AppError
 import HaskellWorks.CabalCache.IO.Error (catchErrno, exceptWarn, maybeToExcept)
-import HaskellWorks.CabalCache.Location (Location (..), toLocation, (<.>), (</>))
+import HaskellWorks.CabalCache.Location ((<.>), (</>))
 import HaskellWorks.CabalCache.Metadata (loadMetadata)
 import HaskellWorks.CabalCache.Show
 import HaskellWorks.CabalCache.Version  (archiveVersion)
 import Options.Applicative              hiding (columns)
 import System.Directory                 (createDirectoryIfMissing, doesDirectoryExist)
+import Polysemy
+import Network.AWS.Types                (LogLevel(..))
 
 import qualified App.Commands.Options.Types                       as Z
 import qualified Control.Concurrent.STM                           as STM
@@ -45,12 +43,24 @@ import qualified HaskellWorks.CabalCache.AWS.Env                  as AWS
 import qualified HaskellWorks.CabalCache.Concurrent.DownloadQueue as DQ
 import qualified HaskellWorks.CabalCache.Concurrent.Fork          as IO
 import qualified HaskellWorks.CabalCache.Core                     as Z
+import qualified HaskellWorks.CabalCache.Effects.Aws              as E
+import qualified HaskellWorks.CabalCache.Effects.Console          as E
+import qualified HaskellWorks.CabalCache.Effects.Exit             as E
+import qualified HaskellWorks.CabalCache.Effects.FileSystem       as E
+import qualified HaskellWorks.CabalCache.Effects.GhcPkg           as E
+import qualified HaskellWorks.CabalCache.Effects.Log              as E
+import qualified HaskellWorks.CabalCache.Effects.Plan             as E
+import qualified HaskellWorks.CabalCache.Effects.Process          as E
 import qualified HaskellWorks.CabalCache.GhcPkg                   as GhcPkg
 import qualified HaskellWorks.CabalCache.Hash                     as H
 import qualified HaskellWorks.CabalCache.IO.Console               as CIO
 import qualified HaskellWorks.CabalCache.IO.Lazy                  as IO
 import qualified HaskellWorks.CabalCache.IO.Tar                   as IO
 import qualified HaskellWorks.CabalCache.Types                    as Z
+import qualified Polysemy                                         as E
+import qualified Polysemy.Error                                   as E
+import qualified Polysemy.Fail                                    as E
+import qualified Polysemy.Final                                   as E
 import qualified System.Directory                                 as IO
 import qualified System.IO                                        as IO
 import qualified System.IO.Temp                                   as IO
@@ -63,8 +73,59 @@ import qualified System.IO.Unsafe                                 as IO
 skippable :: Z.Package -> Bool
 skippable package = package ^. the @"packageType" == "pre-existing"
 
-runSyncFromArchive :: Z.SyncFromArchiveOptions -> IO ()
-runSyncFromArchive opts = do
+runPolySyncFromArchive' :: Z.PolySyncFromArchiveOptions -> IO ()
+runPolySyncFromArchive' opts = E.runFinal . E.embedToFinal @IO . E.runEffConsole . E.runEffLogConsole . E.exitAndPrintOnFail $ do  -- E.runEffExit . E.exitAndPrintOnFail $
+  result <- runInEffect opts
+    & E.runError @E.PlanError
+    & E.runEffProcess
+    & E.runEffFileSystem
+
+  return ()
+
+runInEffect :: Members '[
+      E.Console
+    , E.Error E.PlanError
+    , E.Fail
+    , E.FileSystem
+    , E.Embed IO
+    , E.Final IO
+    , E.Log
+    , E.Process
+    ] r
+  => Z.PolySyncFromArchiveOptions -> Sem r ()
+runInEffect opts = do
+  let storePath           = opts ^. the @"storePath"
+  let archiveUri          = opts ^. the @"archiveUri"
+  let threads             = opts ^. the @"threads"
+  let awsLogLevel         = opts ^. the @"awsLogLevel"
+  let versionedArchiveUri = archiveUri </> archiveVersion
+  let storePathHash       = opts ^. the @"storePathHash" & fromMaybe (H.hashStorePath storePath)
+  let scopedArchiveUri    = versionedArchiveUri </> T.pack storePathHash
+
+  E.putStrLn $ "Store path: "       <> toText storePath
+  E.putStrLn $ "Store path hash: "  <> T.pack storePathHash
+  E.putStrLn $ "Archive URI: "      <> toText archiveUri
+  E.putStrLn $ "Archive version: "  <> archiveVersion
+  E.putStrLn $ "Threads: "          <> tshow threads
+  E.putStrLn $ "AWS Log level: "    <> tshow awsLogLevel
+
+  planJson <- E.loadPlan & E.successOrFail @E.PlanError
+
+  compilerContextResult <- runExceptT $ Z.mkCompilerContext planJson
+
+  case compilerContextResult of
+    Right compilerContext -> do
+      E.testAvailability compilerContext
+
+      E.runEffMkAwsEnv $ do
+        env <- E.awsMkEnv (opts ^. the @"region") (E.awsLogger (Just Error))
+
+        return ()
+
+      return ()
+
+runPolySyncFromArchive :: Z.PolySyncFromArchiveOptions -> IO ()
+runPolySyncFromArchive opts = do
   let storePath           = opts ^. the @"storePath"
   let archiveUri          = opts ^. the @"archiveUri"
   let threads             = opts ^. the @"threads"
@@ -80,16 +141,16 @@ runSyncFromArchive opts = do
   CIO.putStrLn $ "Threads: "          <> tshow threads
   CIO.putStrLn $ "AWS Log level: "    <> tshow awsLogLevel
 
-  mbPlan <- Z.loadPlan
+  envAws <- mkEnv (opts ^. the @"region") (AWS.awsLogger awsLogLevel)
 
+  mbPlan <- Z.loadPlan
   case mbPlan of
     Right planJson -> do
       compilerContextResult <- runExceptT $ Z.mkCompilerContext planJson
 
       case compilerContextResult of
         Right compilerContext -> do
-          GhcPkg.testAvailability compilerContext
-
+          -- E.testAvailability compilerContext
           envAws <- IO.unsafeInterleaveIO $ mkEnv (opts ^. the @"region") (AWS.awsLogger awsLogLevel)
           let compilerId                  = planJson ^. the @"compilerId"
           let storeCompilerPath           = storePath </> T.unpack compilerId
@@ -177,7 +238,7 @@ runSyncFromArchive opts = do
           failures <- STM.atomically $ STM.readTVar $ downloadQueue ^. the @"tFailures"
 
           forM_ failures $ \packageId -> CIO.hPutStrLn IO.stderr $ "Failed to download: " <> packageId
-        Left msg -> CIO.hPutStrLn IO.stderr msg
+
     Left appError -> do
       CIO.hPutStrLn IO.stderr $ "ERROR: Unable to parse plan.json file: " <> displayAppError appError
 
@@ -197,46 +258,5 @@ onError h failureValue f = do
     Right a -> return a
   where handler e = lift (h e) >> return failureValue
 
-optsSyncFromArchive :: Parser SyncFromArchiveOptions
-optsSyncFromArchive = SyncFromArchiveOptions
-  <$> option (auto <|> text)
-      (  long "region"
-      <> metavar "AWS_REGION"
-      <> showDefault <> value Oregon
-      <> help "The AWS region in which to operate"
-      )
-  <*> option (maybeReader (toLocation . T.pack))
-      (   long "archive-uri"
-      <>  help "Archive URI to sync to"
-      <>  metavar "S3_URI"
-      <>  value (Local $ homeDirectory </> ".cabal" </> "archive")
-      )
-  <*> strOption
-      (   long "store-path"
-      <>  help "Path to cabal store"
-      <>  metavar "DIRECTORY"
-      <>  value (homeDirectory </> ".cabal" </> "store")
-      )
-  <*> optional
-      ( strOption
-        (   long "store-path-hash"
-        <>  help "Store path hash (do not use)"
-        <>  metavar "HASH"
-        )
-      )
-  <*> option auto
-      (   long "threads"
-      <>  help "Number of concurrent threads"
-      <>  metavar "NUM_THREADS"
-      <>  value 4
-      )
-  <*> optional
-      ( option autoText
-        (   long "aws-log-level"
-        <>  help "AWS Log Level.  One of (Error, Info, Debug, Trace)"
-        <>  metavar "AWS_LOG_LEVEL"
-        )
-      )
-
-cmdSyncFromArchive :: Mod CommandFields (IO ())
-cmdSyncFromArchive = command "sync-from-archive"  $ flip info idm $ runSyncFromArchive <$> optsSyncFromArchive
+cmdPolySyncFromArchive :: Mod CommandFields (IO ())
+cmdPolySyncFromArchive = command "poly-sync-from-archive"  $ flip info idm $ runPolySyncFromArchive <$> optsPolySyncFromArchive

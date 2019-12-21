@@ -3,12 +3,12 @@
 {-# LANGUAGE MultiWayIf             #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TypeFamilies           #-}
+
 module HaskellWorks.CabalCache.Location
-( IsPath(..)
-, Location(..)
-, toLocation
-)
-where
+  ( IsPath(..)
+  , Location(..)
+  , toLocation
+  ) where
 
 import Antiope.Core (ToText (..), fromText)
 import Antiope.S3   (ObjectKey (..), S3Uri (..))
