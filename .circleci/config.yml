@@ -1,9 +1,10 @@
 version: 2.1
 
 orbs:
-  haskell: haskell-works/haskell-build@4.1.8
+  haskell: haskell-works/haskell-build@dev:jky
   github: haskell-works/github-release@1.3.3
   hackage: haskell-works/hackage@1.4.2
+  win: circleci/windows@2.2.0
 
 executors:
   darwin:
@@ -85,11 +86,25 @@ workflows:
             branches:
               only: master
 
+      - haskell/build-with-binary-cache:
+          name: GHC 8.8.3 (Windows)
+          executor:
+            name: win/default
+            shell: bash.exe
+          context: haskell-ci
+          binary-cache-uri: ${BINARY_CACHE_URI-"http://cache.haskellworks.io/archive"}
+          binary-cache-uri-suffix: -win
+          cabal-build-extra: --write-ghc-environment-files=ghc8.4.4+
+          cabal-test-extra: --test-show-details=direct --test-options='+RTS -g1'
+          workspace-dir: workspace/ghc-8.8.3-nt
+          write-result-workspace: true
+
       - github/release-cabal:
           context: haskell-ci
           name: GitHub Release
           attach-workspace: true
           requires:
+            - GHC 8.8.3 (Windows)
             - GHC 8.6.5
             - GHC 8.8.3
             - i386 GHC 8.8.3
@@ -105,6 +120,8 @@ workflows:
                   tar zcvf /tmp/artefacts/i386-${CIRCLE_PROJECT_REPONAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz -C ./workspace/i386-ghc-8.8.3/dist/ ./${BUILD_EXE_NAME}
                   source ./workspace/osx/project.env
                   tar zcvf /tmp/artefacts/${CIRCLE_PROJECT_REPONAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz -C ./workspace/osx/dist/ ./${BUILD_EXE_NAME}
+                  source ./workspace/ghc-8.8.3-nt/project.env
+                  tar zcvf /tmp/artefacts/${CIRCLE_PROJECT_REPONAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz -C ./workspace/ghc-8.8.3-nt/dist/ ./${BUILD_EXE_NAME}
           filters:
             branches:
               only: master
