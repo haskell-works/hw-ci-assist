@@ -87,6 +87,10 @@ jobs:
               --region        "$BINARY_CACHE_REGION" \
               --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}"
 
+      - name: Trigger possible releases
+        run: |
+          echo 1
+
       - name: Compress Binary
         id: compress_binary
         env:
