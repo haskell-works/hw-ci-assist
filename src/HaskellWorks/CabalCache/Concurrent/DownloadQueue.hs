@@ -4,7 +4,6 @@
 
 module HaskellWorks.CabalCache.Concurrent.DownloadQueue
   ( createDownloadQueue
-  , anchor
   , runQueue
   ) where
 
@@ -12,13 +11,9 @@ import Control.Monad.IO.Class
 import Data.Set               ((\\))
 
 import qualified Control.Concurrent.STM                  as STM
-import qualified Data.Map                                as M
 import qualified Data.Relation                           as R
 import qualified Data.Set                                as S
 import qualified HaskellWorks.CabalCache.Concurrent.Type as Z
-
-anchor :: Z.PackageId -> M.Map Z.ConsumerId Z.ProviderId -> M.Map Z.ConsumerId Z.ProviderId
-anchor root dependencies = M.union dependencies $ M.singleton root (mconcat (M.elems dependencies))
 
 createDownloadQueue :: [(Z.ProviderId, Z.ConsumerId)] -> STM.STM Z.DownloadQueue
 createDownloadQueue dependencies = do
