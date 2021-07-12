@@ -58,7 +58,8 @@ jobs:
               --threads       "$BINARY_CACHE_THREADS" \
               --archive-uri   "$BINARY_CACHE_URI" \
               --region        "$BINARY_CACHE_REGION" \
-              --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}"
+              --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}" \
+              --build-path    "dist-newstyle"
 
       - name: Build
         # Try building it twice in case of flakey builds on Windows
@@ -85,7 +86,8 @@ jobs:
               --threads       "$BINARY_CACHE_THREADS" \
               --archive-uri   "$BINARY_CACHE_URI" \
               --region        "$BINARY_CACHE_REGION" \
-              --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}"
+              --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}" \
+              --build-path    "dist-newstyle"
 
       - name: Compress Binary
         id: compress_binary
