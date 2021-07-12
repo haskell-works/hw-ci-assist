@@ -1,4 +1,4 @@
-name: Binaries
+name: Build & Publish
 
 defaults:
   run:
@@ -86,6 +86,17 @@ jobs:
               --archive-uri   "$BINARY_CACHE_URI" \
               --region        "$BINARY_CACHE_REGION" \
               --store-path    "${{ steps.setup-haskell.outputs.cabal-store }}"
+
+  release:
+    runs-on: ubuntu-18.04
+    needs: build
+
+    steps:
+      - name: Check hackage
+        uses: haskell-works/hackage-action@master
+        with:
+          args: |
+            is-published
 
       - name: Compress Binary
         id: compress_binary
